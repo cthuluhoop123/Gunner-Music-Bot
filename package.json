@@ -1,0 +1,26 @@
+{
+  "name": "Gunner-Music-Bot",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "dependencies": {
+    "discord.js": "^11.5.1",
+    "dotenv": "^8.2.0",
+    "superagent": "^5.1.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cthuluhoop123/Gunner-Music-Bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cthuluhoop123/Gunner-Music-Bot/issues"
+  },
+  "homepage": "https://github.com/cthuluhoop123/Gunner-Music-Bot#readme",
+  "description": ""
+}

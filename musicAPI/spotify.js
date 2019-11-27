@@ -41,6 +41,18 @@ class Spotify {
                 .catch(reject);
         });
     }
+
+    getPlaylist(playlistID) {
+        return new Promise((resolve, reject) => {
+            request
+                .get(base + `/playlists/${playlistID}/tracks`)
+                .set('Authorization', `Bearer ${this.token}`)
+                .then(res => {
+                    resolve(res.body);
+                })
+                .catch(reject);
+        });
+    }
 }
 
 module.exports = Spotify;
