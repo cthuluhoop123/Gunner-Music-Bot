@@ -22,9 +22,9 @@ client.on('message', async message => {
     if (!message.member.hasPermission('ADMINISTRATOR') || !message.content.startsWith(prefix)) { return; }
     const args = message.content.split(' ');
     const command = args.shift().slice(prefix.length).toLowerCase();
-    if (command === 'trackplaylist') { db.push(`PLAYLIST:${message.channel.id}`, args[0]); }
-    if (command === 'trackartist') { db.push(`ARTIST:${message.channel.id}`, args[0]); }
-    if (command === 'trackscuser') { db.push(`SCUSER:${message.channel.id}`, args[0]); }
+    if (command === 'trackplaylist') { db.push(`PLAYLIST:${message.channel.id}`, 'fix' + args[0]); }
+    if (command === 'trackartist') { db.push(`ARTIST:${message.channel.id}`, 'fix' + args[0]); }
+    if (command === 'trackscuser') { db.push(`SCUSER:${message.channel.id}`, 'fix' + args[0]); }
     if (command === 'test') {
         await checkForNew(message.channel.id).catch(err => console.error(err));
     }
@@ -36,41 +36,47 @@ async function checkForNew(channelID) {
     await spotify.authenticate();
     const newFromPlaylists = await checkSpotifyPlaylists(channelID);
     const newFromArtists = await checkSpotifyArtists(channelID);
-    console.log(newFromPlaylists);
-    console.log(newFromArtists);
+    const newFromSC = await checkSoundcloud(channelID);
+    console.log('newFromPlaylists', newFromPlaylists);
+    console.log('newFromArtists', newFromArtists);
+    console.log('newFromSC', newFromSC);
 }
 
 async function checkSpotifyPlaylists(channelID) {
     const trackedSpotifyPlaylists = db.get(`PLAYLIST:${channelID}`) || [];
     const ignoredSongs = db.get('IGNORED_SONGS') || [];
-    return await Promise.all(
+    return (await Promise.all(
         trackedSpotifyPlaylists.map(async playlistID => {
-            const { items } = await spotify.getPlaylist(playlistID);
-            const newSongs = items.filter(item => !ignoredSongs.includes(item.track.id));
+            const { items } = await spotify.getPlaylist(playlistID.slice(3));
+            const newSongs = items.filter(item => !ignoredSongs.includes('fix' + item.track.id));
+            newSongs.forEach(song => db.push('IGNORED_SONGS', 'fix' + song.track.id));
             return newSongs;
         })
-    );
+    )).flat();
 }
 
 async function checkSpotifyArtists(channelID) {
     const trackedSpotifyArtists = db.get(`ARTIST:${channelID}`) || [];
     const ignoredAlbums = db.get('IGNORED_ALBUMS') || [];
-    return await Promise.all(
+    return (await Promise.all(
         trackedSpotifyArtists.map(async artistID => {
-            const { items } = await spotify.getArtistAlbums(artistID);
-            const newAlbums = items.filter(item => !ignoredAlbums.includes(item.id));
+            const { items } = await spotify.getArtistAlbums(artistID.slice(3));
+            const newAlbums = items.filter(item => !ignoredAlbums.includes('fix' + item.id));
+            newAlbums.forEach(item => db.push('IGNORED_ALBUMS', 'fix' + item.id));
             return newAlbums;
         })
-    );
+    )).flat();
 }
 
 async function checkSoundcloud(channelID) {
-    const trackedSoundcloudUser = db.get(`SCUSER:${message.channel.id}`) || [];
+    const trackedSoundcloudUser = db.get(`SCUSER:${channelID}`) || [];
     const ignoredTracks = db.get('IGNORED_TRACKS') || [];
-    return await Promise.all(
-        trackedSoundcloudUser.map(userID => {
-            const tracks = await soundcloud.getUserTracks(userID);
-            const newTracks = tracks.filter(track => !ignoredTracks.includes(track.id));
+    return (await Promise.all(
+        trackedSoundcloudUser.map(async userID => {
+            const tracks = await soundcloud.getUserTracks(userID.slice(3));
+            const newTracks = tracks.filter(track => !ignoredTracks.includes('fix' + track.id));
+            newTracks.forEach(track => db.push('IGNORED_TRACKS', 'fix' + track.id));
+            return newTracks;
         })
-    );
+    )).flat();
 }
