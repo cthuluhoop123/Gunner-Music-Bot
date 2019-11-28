@@ -16,15 +16,40 @@ const client = new Discord.Client();
 client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     console.log(await client.generateInvite());
+    timer();
 });
 
 client.on('message', async message => {
     if (!message.member.hasPermission('ADMINISTRATOR') || !message.content.startsWith(prefix)) { return; }
     const args = message.content.split(' ');
     const command = args.shift().slice(prefix.length).toLowerCase();
-    if (command === 'trackplaylist') { db.push(`PLAYLIST:${message.channel.id}`, 'fix' + args[0]); }
-    if (command === 'trackartist') { db.push(`ARTIST:${message.channel.id}`, 'fix' + args[0]); }
-    if (command === 'trackscuser') { db.push(`SCUSER:${message.channel.id}`, 'fix' + args[0]); }
+    if (command === 'trackplaylist') {
+        db.push(`PLAYLIST:${message.channel.id}`, 'fix' + args[0]);
+        message.reply(`Spotify playlist: **${args[0]}** added to tracking list!`)
+    }
+    if (command === 'trackartist') {
+        db.push(`ARTIST:${message.channel.id}`, 'fix' + args[0]);
+        message.reply(`Spotify artist: **${args[0]}** added to tracking list!`)
+    }
+    if (command === 'trackscuser') {
+        const username = args[0];
+        try {
+            const resolvedFromSoundcloud = await soundcloud.resolve('https://soundcloud.com/' + username);
+            if (resolvedFromSoundcloud.kind !== 'user') {
+                message.reply('That is not a URL of a user.');
+                return;
+            }
+            db.push(`SCUSER:${message.channel.id}`, 'fix' + resolvedFromSoundcloud.id);
+            message.reply(`Soundcloud user ${resolvedFromSoundcloud.username} added to tracking list!`);
+        } catch (err) {
+            if (err.message === 'Not Found') {
+                message.reply('Could not find a user with that soundcloud username.');
+            } else {
+                message.reply('An unexpected error occured while looking that up.');
+                console.error(err);
+            }
+        }
+    }
     if (command === 'test') {
         await checkForNew(message.channel.id).catch(err => console.error(err));
     }
@@ -32,14 +57,21 @@ client.on('message', async message => {
 
 client.login(process.env.DISCORD_TOKEN);
 
+async function timer() {
+    for (channelID of client.channels.filter(channel => channel.type === 'text').map(channel => channel.id)) {
+        await checkForNew(channelID).catch(err => console.error(err));
+    }
+    setTimeout(timer, 1000 * 60 * 7);
+}
+
 async function checkForNew(channelID) {
     await spotify.authenticate();
     const newFromPlaylists = await checkSpotifyPlaylists(channelID);
     const newFromArtists = await checkSpotifyArtists(channelID);
     const newFromSC = await checkSoundcloud(channelID);
-    console.log('newFromPlaylists', newFromPlaylists);
-    console.log('newFromArtists', newFromArtists);
-    console.log('newFromSC', newFromSC);
+    newFromPlaylists.forEach(track => {
+
+    });
 }
 
 async function checkSpotifyPlaylists(channelID) {
@@ -69,10 +101,10 @@ async function checkSpotifyArtists(channelID) {
 }
 
 async function checkSoundcloud(channelID) {
-    const trackedSoundcloudUser = db.get(`SCUSER:${channelID}`) || [];
+    const trackedSoundcloudUsers = db.get(`SCUSER:${channelID}`) || [];
     const ignoredTracks = db.get('IGNORED_TRACKS') || [];
     return (await Promise.all(
-        trackedSoundcloudUser.map(async userID => {
+        trackedSoundcloudUsers.map(async userID => {
             const tracks = await soundcloud.getUserTracks(userID.slice(3));
             const newTracks = tracks.filter(track => !ignoredTracks.includes('fix' + track.id));
             newTracks.forEach(track => db.push('IGNORED_TRACKS', 'fix' + track.id));
