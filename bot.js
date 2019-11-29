@@ -27,7 +27,7 @@ client.on('message', async message => {
     if (command === 'trackplaylist') {
         try {
             const inDb = db.get(`PLAYLIST:${message.channel.id}`);
-            if (inDb.includes('fix' + args[0])) {
+            if (inDb && inDb.includes('fix' + args[0])) {
                 message.reply(`That playlist is already in the tracking list!`);
                 return;
             }
@@ -47,7 +47,7 @@ client.on('message', async message => {
     if (command === 'trackartist') {
         try {
             const inDb = db.get(`ARTIST:${message.channel.id}`);
-            if (inDb.includes('fix' + args[0])) {
+            if (inDb && inDb.includes('fix' + args[0])) {
                 message.reply(`That artist is already in the tracking list!`);
                 return;
             }
@@ -69,7 +69,7 @@ client.on('message', async message => {
         try {
             const resolvedFromSoundcloud = await soundcloud.resolve('https://soundcloud.com/' + username);
             const inDb = db.get(`SCUSER:${message.channel.id}`);
-            if (inDb.includes('fix' + resolvedFromSoundcloud.id)) {
+            if (inDb && inDb.includes('fix' + resolvedFromSoundcloud.id)) {
                 message.reply(`That user is already in the tracking list!`);
                 return;
             }
