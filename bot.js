@@ -26,6 +26,11 @@ client.on('message', async message => {
     const command = args.shift().slice(prefix.length).toLowerCase();
     if (command === 'trackplaylist') {
         try {
+            const inDb = db.get(`PLAYLIST:${message.channel.id}`);
+            if (inDb.includes('fix' + args[0])) {
+                message.reply(`That playlist is already in the tracking list!`);
+                return;
+            }
             const playlistData = await spotify.getPlaylist(args[0]);
             db.push(`PLAYLIST:${message.channel.id}`, 'fix' + args[0]);
             db.set(`PLAYLISTMETA:${args[0]}`, playlistData.name);
@@ -41,6 +46,11 @@ client.on('message', async message => {
     }
     if (command === 'trackartist') {
         try {
+            const inDb = db.get(`ARTIST:${message.channel.id}`);
+            if (inDb.includes('fix' + args[0])) {
+                message.reply(`That artist is already in the tracking list!`);
+                return;
+            }
             const artistData = await spotify.getArtist(args[0]);
             db.push(`ARTIST:${message.channel.id}`, 'fix' + args[0]);
             db.set(`ARTISTMETA:${args[0]}`, artistData.name);
@@ -58,6 +68,11 @@ client.on('message', async message => {
         const username = args[0];
         try {
             const resolvedFromSoundcloud = await soundcloud.resolve('https://soundcloud.com/' + username);
+            const inDb = db.get(`SCUSER:${message.channel.id}`);
+            if (inDb.includes('fix' + resolvedFromSoundcloud.id)) {
+                message.reply(`That user is already in the tracking list!`);
+                return;
+            }
             if (resolvedFromSoundcloud.kind !== 'user') {
                 message.reply('That is not a URL of a user.');
                 return;
