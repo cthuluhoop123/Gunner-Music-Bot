@@ -63,7 +63,7 @@ client.on('message', async message => {
                 return;
             }
             db.push(`SCUSER:${message.channel.id}`, 'fix' + resolvedFromSoundcloud.id);
-            message.reply(`Soundcloud user ${resolvedFromSoundcloud.username} added to tracking list!`);
+            message.reply(`Soundcloud user **${resolvedFromSoundcloud.username}** added to tracking list!`);
         } catch (err) {
             if (err.message === 'Not Found') {
                 message.reply('Could not find a user with that soundcloud username.');
@@ -107,6 +107,33 @@ async function checkForNew(channelID) {
             });
         });
     });
+    newFromArtists.forEach(([artistID, albums]) => {
+        const artistName = db.get(`ARTISTMETA:${artistID}`);
+        albums.forEach(album => {
+            client.channels.get(channelID).send({
+                embed: createSongEmbed({
+                    color: 0x1DB954,
+                    author: artistName,
+                    title: `${artistName} - ${album.name} (${album.type})`,
+                    href: `https://open.spotify.com/artist/${artistID}`,
+                    thumbnail: album.images[0].url,
+                    body: `[Link to album](https://open.spotify.com/album/${album.id})`
+                })
+            });
+        });
+    });
+    newFromSC.forEach(soundcloudTrack => {
+        client.channels.get(channelID).send({
+            embed: createSongEmbed({
+                color: 0xff7700,
+                author: soundcloudTrack.user.username,
+                title: `${soundcloudTrack.user.permalink} - ${soundcloudTrack.title}`,
+                href: soundcloudTrack.user.permalink_url,
+                thumbnail: soundcloudTrack.artwork_url,
+                body: `[Link to track](${soundcloudTrack.permalink_url})`
+            })
+        });
+    });
 }
 
 async function checkSpotifyPlaylists(channelID) {
@@ -130,9 +157,9 @@ async function checkSpotifyArtists(channelID) {
             const { items } = await spotify.getArtistAlbums(artistID.slice(3));
             const newAlbums = items.filter(item => !ignoredAlbums.includes('fix' + item.id));
             newAlbums.forEach(item => db.push('IGNORED_ALBUMS', 'fix' + item.id));
-            return newAlbums;
+            return [artistID.slice(3), newAlbums];
         })
-    )).flat();
+    ));
 }
 
 async function checkSoundcloud(channelID) {
