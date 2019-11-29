@@ -30,6 +30,18 @@ class Spotify {
         });
     }
 
+    getArtist(artistID) {
+        return new Promise((resolve, reject) => {
+            request
+                .get(base + `/artists/${artistID}`)
+                .set('Authorization', `Bearer ${this.token}`)
+                .then(res => {
+                    resolve(res.body);
+                })
+                .catch(reject);
+        });
+    }
+
     getArtistAlbums(artistID) {
         return new Promise((resolve, reject) => {
             request
@@ -43,6 +55,18 @@ class Spotify {
     }
 
     getPlaylist(playlistID) {
+         return new Promise((resolve, reject) => {
+             request
+                 .get(base + `/playlists/${playlistID}`)
+                 .set('Authorization', `Bearer ${this.token}`)
+                 .then(res => {
+                     resolve(res.body);
+                 })
+                 .catch(reject);
+         });
+    }
+
+    getPlaylistTracks(playlistID) {
         return new Promise((resolve, reject) => {
             request
                 .get(base + `/playlists/${playlistID}/tracks`)

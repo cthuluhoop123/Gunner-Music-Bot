@@ -16,6 +16,7 @@ const client = new Discord.Client();
 client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     console.log(await client.generateInvite());
+    await spotify.authenticate().catch(err => console.error(err));
     timer();
 });
 
@@ -24,12 +25,34 @@ client.on('message', async message => {
     const args = message.content.split(' ');
     const command = args.shift().slice(prefix.length).toLowerCase();
     if (command === 'trackplaylist') {
-        db.push(`PLAYLIST:${message.channel.id}`, 'fix' + args[0]);
-        message.reply(`Spotify playlist: **${args[0]}** added to tracking list!`)
+        try {
+            const playlistData = await spotify.getPlaylist(args[0]);
+            db.push(`PLAYLIST:${message.channel.id}`, 'fix' + args[0]);
+            db.set(`PLAYLISTMETA:${args[0]}`, playlistData.name);
+            message.reply(`Spotify playlist: **${playlistData.name}** added to tracking list!`);
+        } catch (err) {
+            if (err.message === 'Not Found') {
+                message.reply('Could not find a user with that soundcloud username.');
+            } else {
+                message.reply('An unexpected error occured while looking that up.');
+                console.error(err);
+            }
+        }
     }
     if (command === 'trackartist') {
-        db.push(`ARTIST:${message.channel.id}`, 'fix' + args[0]);
-        message.reply(`Spotify artist: **${args[0]}** added to tracking list!`)
+        try {
+            const artistData = await spotify.getArtist(args[0]);
+            db.push(`ARTIST:${message.channel.id}`, 'fix' + args[0]);
+            db.set(`ARTISTMETA:${args[0]}`, artistData.name);
+            message.reply(`Spotify artist: **${artistData.name}** added to tracking list!`);
+        } catch (err) {
+            if (err.message === 'Not Found') {
+                message.reply('Could not find a user with that soundcloud username.');
+            } else {
+                message.reply('An unexpected error occured while looking that up.');
+                console.error(err);
+            }
+        }
     }
     if (command === 'trackscuser') {
         const username = args[0];
@@ -69,8 +92,20 @@ async function checkForNew(channelID) {
     const newFromPlaylists = await checkSpotifyPlaylists(channelID);
     const newFromArtists = await checkSpotifyArtists(channelID);
     const newFromSC = await checkSoundcloud(channelID);
-    newFromPlaylists.forEach(track => {
-
+    newFromPlaylists.forEach(([playlistID, tracks]) => {
+        const playlistName = db.get(`PLAYLISTMETA:${playlistID}`);
+        tracks.forEach(track => {
+            client.channels.get(channelID).send({
+                embed: createSongEmbed({
+                    color: 0x1DB954,
+                    author: track.added_by.id,
+                    title: `${playlistName} - ${track.track.name}`,
+                    href: track.added_by.external_urls.spotify,
+                    thumbnail: track.track.album.images[0].url,
+                    body: `[Link to playlist](https://open.spotify.com/playlist/${playlistID})\n[Link to track](${track.track.external_urls.spotify})`
+                })
+            });
+        });
     });
 }
 
@@ -79,12 +114,12 @@ async function checkSpotifyPlaylists(channelID) {
     const ignoredSongs = db.get('IGNORED_SONGS') || [];
     return (await Promise.all(
         trackedSpotifyPlaylists.map(async playlistID => {
-            const { items } = await spotify.getPlaylist(playlistID.slice(3));
+            const { items } = await spotify.getPlaylistTracks(playlistID.slice(3));
             const newSongs = items.filter(item => !ignoredSongs.includes('fix' + item.track.id));
             newSongs.forEach(song => db.push('IGNORED_SONGS', 'fix' + song.track.id));
-            return newSongs;
+            return [playlistID.slice(3), newSongs];
         })
-    )).flat();
+    ));
 }
 
 async function checkSpotifyArtists(channelID) {
@@ -111,4 +146,13 @@ async function checkSoundcloud(channelID) {
             return newTracks;
         })
     )).flat();
+}
+
+function createSongEmbed(data) {
+    return new Discord.RichEmbed()
+        .setColor(data.color)
+        .setAuthor(data.author, null, data.href)
+        .setTitle(data.title)
+        .setThumbnail(data.thumbnail)
+        .setDescription(data.body);
 }
