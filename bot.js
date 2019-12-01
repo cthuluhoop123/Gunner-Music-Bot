@@ -35,6 +35,7 @@ client.on('message', async message => {
             db.push(`PLAYLIST:${message.channel.id}`, 'fix' + args[0]);
             db.set(`PLAYLISTMETA:${args[0]}`, playlistData.name);
             message.reply(`Spotify playlist: **${playlistData.name}** added to tracking list!`);
+            checkSpotifyPlaylists(null, args[0]).catch(err => console.error(err));
         } catch (err) {
             if (err.message === 'Not Found') {
                 message.reply('Could not find a user with that soundcloud username.');
@@ -55,6 +56,7 @@ client.on('message', async message => {
             db.push(`ARTIST:${message.channel.id}`, 'fix' + args[0]);
             db.set(`ARTISTMETA:${args[0]}`, artistData.name);
             message.reply(`Spotify artist: **${artistData.name}** added to tracking list!`);
+            checkSpotifyArtists(null, args[0]).catch(err => console.error(err));
         } catch (err) {
             if (err.message === 'Not Found') {
                 message.reply('Could not find a user with that soundcloud username.');
@@ -79,6 +81,7 @@ client.on('message', async message => {
             }
             db.push(`SCUSER:${message.channel.id}`, 'fix' + resolvedFromSoundcloud.id);
             message.reply(`Soundcloud user **${resolvedFromSoundcloud.username}** added to tracking list!`);
+            checkSoundcloud(null, resolvedFromSoundcloud.id).catch(err => console.error(err));
         } catch (err) {
             if (err.message === 'Not Found') {
                 message.reply('Could not find a user with that soundcloud username.');
@@ -151,9 +154,16 @@ async function checkForNew(channelID) {
     });
 }
 
-async function checkSpotifyPlaylists(channelID) {
-    const trackedSpotifyPlaylists = db.get(`PLAYLIST:${channelID}`) || [];
+async function checkSpotifyPlaylists(channelID, playlistID) {
     const ignoredSongs = db.get('IGNORED_SONGS') || [];
+    if (playlistID) {
+        const { items } = await spotify.getPlaylistTracks(playlistID);
+        const newSongs = items.filter(item => !ignoredSongs.includes('fix' + item.track.id));
+        newSongs.forEach(song => db.push('IGNORED_SONGS', 'fix' + song.track.id));
+        return [playlistID, newSongs];
+    }
+
+    const trackedSpotifyPlaylists = db.get(`PLAYLIST:${channelID}`) || [];
     return (await Promise.all(
         trackedSpotifyPlaylists.map(async playlistID => {
             const { items } = await spotify.getPlaylistTracks(playlistID.slice(3));
@@ -164,9 +174,15 @@ async function checkSpotifyPlaylists(channelID) {
     ));
 }
 
-async function checkSpotifyArtists(channelID) {
-    const trackedSpotifyArtists = db.get(`ARTIST:${channelID}`) || [];
+async function checkSpotifyArtists(channelID, artistID) {
     const ignoredAlbums = db.get('IGNORED_ALBUMS') || [];
+    if (artistID) {
+        const { items } = await spotify.getArtistAlbums(artistID);
+        const newAlbums = items.filter(item => !ignoredAlbums.includes('fix' + item.id));
+        newAlbums.forEach(item => db.push('IGNORED_ALBUMS', 'fix' + item.id));
+        return [artistID, newAlbums];
+    }
+    const trackedSpotifyArtists = db.get(`ARTIST:${channelID}`) || [];
     return (await Promise.all(
         trackedSpotifyArtists.map(async artistID => {
             const { items } = await spotify.getArtistAlbums(artistID.slice(3));
@@ -177,9 +193,15 @@ async function checkSpotifyArtists(channelID) {
     ));
 }
 
-async function checkSoundcloud(channelID) {
-    const trackedSoundcloudUsers = db.get(`SCUSER:${channelID}`) || [];
+async function checkSoundcloud(channelID, userID) {
     const ignoredTracks = db.get('IGNORED_TRACKS') || [];
+    if (userID) {
+        const tracks = await soundcloud.getUserTracks(userID);
+        const newTracks = tracks.filter(track => !ignoredTracks.includes('fix' + track.id));
+        newTracks.forEach(track => db.push('IGNORED_TRACKS', 'fix' + track.id));
+        return newTracks;
+    }
+    const trackedSoundcloudUsers = db.get(`SCUSER:${channelID}`) || [];
     return (await Promise.all(
         trackedSoundcloudUsers.map(async userID => {
             const tracks = await soundcloud.getUserTracks(userID.slice(3));
