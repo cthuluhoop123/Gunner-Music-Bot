@@ -45,6 +45,16 @@ client.on('message', async message => {
             }
         }
     }
+    if (command === 'untrackplaylist') {
+        const inDb = db.get(`PLAYLIST:${message.channel.id}`);
+        db.set(`PLAYLIST:${message.channel.id}`, inDb.filter(playlist => playlist !== 'fix' + args[0]));
+        const playlistName = db.get(`PLAYLISTMETA:${args[0]}`);
+        if (playlistName) {
+            message.reply(`Spotify playlist: **${playlistName}** removed from tracking list!`);
+        } else {
+            message.reply(`Spotify playlist removed from tracking list!`);
+        }
+    }
     if (command === 'trackartist') {
         try {
             const inDb = db.get(`ARTIST:${message.channel.id}`);
@@ -64,6 +74,16 @@ client.on('message', async message => {
                 message.reply('An unexpected error occured while looking that up.');
                 console.error(err);
             }
+        }
+    }
+    if (command === 'untrackartist') {
+        const inDb = db.get(`ARTIST:${message.channel.id}`);
+        db.set(`ARTIST:${message.channel.id}`, inDb.filter(artist => artist !== 'fix' + args[0]));
+        const artistName = db.get(`ARTISTMETA:${args[0]}`);
+        if (artistName) {
+            message.reply(`Spotify artist: **${artistName}** removed from tracking list!`);
+        } else {
+            message.reply(`Spotify artist removed from tracking list!`);
         }
     }
     if (command === 'trackscuser') {
@@ -90,6 +110,11 @@ client.on('message', async message => {
                 console.error(err);
             }
         }
+    }
+    if (command === 'untrackscuser') {
+        const inDb = db.get(`SCUSER:${message.channel.id}`);
+        db.set(`SCUSER:${message.channel.id}`, inDb.filter(scuser => scuser !== 'fix' + args[0]));
+        message.reply(`Soundcloud user: **${args[0]}** removed from tracking list!`);
     }
     if (command === 'test') {
         await checkForNew(message.channel.id).catch(err => console.error(err));
